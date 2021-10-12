@@ -32,8 +32,8 @@ C_MAX = 100
 RAD_MIN = 3
 
 N_CIRCLES = 4
-DELTA_R = 5
-DELTA_C = 5
+DELTA_R = 3
+DELTA_C = 3
 DELTA_RAD = 3
 
 CIRCLE_THICKNESS = 1
@@ -190,8 +190,8 @@ def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS
     modified_img = img.copy()
 
     for circle in circles:
-        modified_img = cv.circle(img=modified_img, center=(circle['r'] + r_min - 1, circle['c'] + c_min - 1), radius=circle['rad'] + rad_min + 1, color=(255, 0, 0), thickness=thickness)
-        modified_img = cv.drawMarker(position=(circle['r'], circle['c']), img=modified_img, color=(255, 0, 0), markerType=cv.MARKER_CROSS, markerSize=marker_size)
+        modified_img = cv.circle(img=modified_img, center=(circle['r'] + r_min - 1, circle['c'] + c_min - 1), radius=circle['rad'] + rad_min + 1, color=(0, 0, 255), thickness=thickness)
+        modified_img = cv.drawMarker(position=(circle['r'], circle['c']), img=modified_img, color=(0, 0, 255), markerType=cv.MARKER_CROSS, markerSize=marker_size)
     
     return modified_img
 
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
         plt.figure(num=image_name)
         plt.subplot(2, 2, 1)
-        plt.imshow(img)
+        plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
         plt.title("Original")
         plt.subplot(2, 2, 2)
         plt.imshow(cleaned_img, cmap="gray")
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         plt.imshow(filtered_img, cmap="gray")
         plt.title("Image with Sobel filter applied")
         plt.subplot(2, 2, 4)
-        plt.imshow(drawn_image, cmap="gray")
+        plt.imshow(cv.cvtColor(drawn_image, cv.COLOR_BGR2RGB))
         plt.title("Detected circles on image")
 
         if args.save:
