@@ -1,4 +1,6 @@
 images
+outputs
 *.png
 *.jpg
 *.pdf
+.vscode
