@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 
+from utils import progress_bar
+
 """Image processing 2nd assignment
 
 Circle detector using Hough Transform
@@ -121,13 +123,18 @@ def get_detected_circles(acc, N_circles=N_CIRCLES) -> list:
     """
     rows, cols, depth = np.shape(acc)
     local_maxima = []
-    print("Finding local maxima...")
+
+    get_detected_circles_progress_bar = progress_bar(
+        "Finding the local maximum", rows, f"rows, {rows * cols} total pixels")
+
     for i in range(rows):
         for j in range(cols):
             for k in range(depth):
                 if is_local_maximum(acc, i, j, k, (rows, cols, depth)):
                     local_maxima.append(
                         {"value": acc[i, j, k], "r": j, "c": i, "rad": k})
+
+        get_detected_circles_progress_bar.update(i + 1)
 
     sorted_maxima = sorted(
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
@@ -171,10 +178,12 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
     acc = np.zeros((r_max - r_min + 1, c_max - c_min + 1,
                     int(rad_max - rad_min) + 1), dtype=float)
 
-    print("Filling the accumulator...")
+    hough_circles_progress_bar = progress_bar(
+        "Filling the accumulator", rows, f"rows, {rows * cols} total pixels")
+
     for y in range(0, rows):
         for x in range(0, cols):
-            print(f"Current pixel : {y}, {x}", end="\r")
+            # print(f"Current pixel : {y}, {x}", end="\r")
             if img[y, x] > 0:
                 for r in range(r_min - 1, r_max):
                     for c in range(c_min - 1, c_max):
@@ -182,6 +191,8 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
                         if rad >= rad_min and rad < rad_max:
                             acc[r - r_min, c - c_max, rad -
                                 rad_min] += img[y, x] / rad
+
+        hough_circles_progress_bar.update(y + 1)
 
     detected_circles = get_detected_circles(acc)
 
