@@ -4,3 +4,4 @@ outputs
 *.jpg
 *.pdf
 .vscode
+__pycache__/
