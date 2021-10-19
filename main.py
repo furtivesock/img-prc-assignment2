@@ -66,17 +66,19 @@ def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
         np.array            : Output image
     """
     # Compute horizontal (grad_x) and vertical (grad_y) derivatives
-    grad_x = cv.Sobel(src=img, ddepth=cv.CV_32F, dx=1, dy=0)
-    grad_y = cv.Sobel(src=img, ddepth=cv.CV_32F, dx=0, dy=1)
+    grad_x = cv.Sobel(src=img, ddepth=cv.CV_16S, dx=1, dy=0)
+    grad_y = cv.Sobel(src=img, ddepth=cv.CV_16S, dx=0, dy=1)
 
     # Combine both derivatives to get an approximation of the gradient
     abs_grad_x = cv.convertScaleAbs(grad_x)
     abs_grad_y = cv.convertScaleAbs(grad_y)
-    # magnitude = math.sqrt(abs_grad_x ** 2 + abs_grad_y ** 2)
-    filtered = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-    ret, filtered = cv.threshold(filtered, 100, 255, cv.THRESH_BINARY)
 
-    return cv.erode(filtered, kernel, iterations=1)
+    edges_img = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
+    # Edges enhancement
+    cleaned_img = cv.threshold(edges_img, 100, 255, cv.THRESH_BINARY)[1]
+
+    # Clean remaining noise
+    return cv.erode(cleaned_img, kernel, iterations=1)
 
 
 def is_local_maximum(acc, i, j, k, shape) -> bool:
@@ -186,14 +188,13 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
 
     for y in range(0, rows):
         for x in range(0, cols):
-            pixel = img[y, x]
-            if pixel > 0:
+            if img[y, x] > 0:
                 for r in range(r_min - 1, r_max):
                     for c in range(c_min - 1, c_max):
                         rad = int(math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
                         if rad >= rad_min and rad < rad_max:
                             acc[r - r_min, c - c_max, rad -
-                                rad_min] += pixel / rad
+                                rad_min] += 1.0 / rad
 
         hough_circles_progress_bar.update(y + 1)
 
