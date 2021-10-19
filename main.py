@@ -43,7 +43,7 @@ DELTA_RAD = 3
 
 CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
-
+ERODE_KERNEL = (3, 3)
 
 def remove_noise(img) -> np.array:
     """Remove noise (if it exists) with median blur to make circle detection easier
@@ -56,8 +56,7 @@ def remove_noise(img) -> np.array:
     """
     return cv.medianBlur(src=img, ksize=5)
 
-
-def sobelize(img) -> np.array:
+def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
     """Apply Sobel filter on an image for edge detection
 
     Args:
@@ -67,13 +66,17 @@ def sobelize(img) -> np.array:
         np.array            : Output image
     """
     # Compute horizontal (grad_x) and vertical (grad_y) derivatives
-    grad_x = cv.Sobel(src=img, ddepth=cv.CV_64F, dx=1, dy=0)
-    grad_y = cv.Sobel(src=img, ddepth=cv.CV_64F, dx=0, dy=1)
+    grad_x = cv.Sobel(src=img, ddepth=cv.CV_32F, dx=1, dy=0)
+    grad_y = cv.Sobel(src=img, ddepth=cv.CV_32F, dx=0, dy=1)
 
     # Combine both derivatives to get an approximation of the gradient
     abs_grad_x = cv.convertScaleAbs(grad_x)
     abs_grad_y = cv.convertScaleAbs(grad_y)
-    return cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
+    # magnitude = math.sqrt(abs_grad_x ** 2 + abs_grad_y ** 2)
+    filtered = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
+    ret, filtered = cv.threshold(filtered, 100, 255, cv.THRESH_BINARY)
+
+    return cv.erode(filtered, kernel, iterations=1)
 
 
 def is_local_maximum(acc, i, j, k, shape) -> bool:
@@ -183,14 +186,14 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
 
     for y in range(0, rows):
         for x in range(0, cols):
-            # print(f"Current pixel : {y}, {x}", end="\r")
-            if img[y, x] > 0:
+            pixel = img[y, x]
+            if pixel > 0:
                 for r in range(r_min - 1, r_max):
                     for c in range(c_min - 1, c_max):
                         rad = int(math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
                         if rad >= rad_min and rad < rad_max:
                             acc[r - r_min, c - c_max, rad -
-                                rad_min] += img[y, x] / rad
+                                rad_min] += pixel / rad
 
         hough_circles_progress_bar.update(y + 1)
 
@@ -217,9 +220,10 @@ def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS
     modified_img = img.copy()
 
     for circle in circles:
-        modified_img = cv.circle(img=modified_img, center=(
-            circle['r'] + r_min - 1, circle['c'] + c_min - 1), radius=circle['rad'] + rad_min + 1, color=(0, 0, 255), thickness=thickness)
-        modified_img = cv.drawMarker(position=(circle['r'], circle['c']), img=modified_img, color=(
+        center = (circle['r'] + r_min - 1, circle['c'] + c_min - 1)
+        modified_img = cv.circle(img=modified_img, center=center,
+            radius=circle['rad'] + rad_min, color=(0, 0, 255), thickness=thickness)
+        modified_img = cv.drawMarker(position=center, img=modified_img, color=(
             0, 0, 255), markerType=cv.MARKER_CROSS, markerSize=marker_size)
 
     return modified_img
