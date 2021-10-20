@@ -43,7 +43,7 @@ DELTA_RAD = 3
 
 CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
-ERODE_KERNEL = (3, 3)
+ERODE_KERNEL = (20, 20)
 
 def remove_noise(img) -> np.array:
     """Remove noise (if it exists) with median blur to make circle detection easier
@@ -54,7 +54,9 @@ def remove_noise(img) -> np.array:
     Returns:
         np.array            : Cleaned image
     """
-    return cv.medianBlur(src=img, ksize=5)
+    # XXX: Quick fix (temp) so that small images are not much blurred as bigger ones
+    ksize = 1 if img.shape[1] < 50 and img.shape[0] < 50 else 3
+    return cv.medianBlur(src=img, ksize=ksize)
 
 def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
     """Apply Sobel filter on an image for edge detection
@@ -74,10 +76,7 @@ def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
     abs_grad_y = cv.convertScaleAbs(grad_y)
 
     edges_img = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-    # Edges enhancement
     cleaned_img = cv.threshold(edges_img, 100, 255, cv.THRESH_BINARY)[1]
-
-    # Clean remaining noise
     return cv.erode(cleaned_img, kernel, iterations=1)
 
 
@@ -191,10 +190,11 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
             if img[y, x] > 0:
                 for r in range(r_min - 1, r_max):
                     for c in range(c_min - 1, c_max):
-                        rad = int(math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
-                        if rad >= rad_min and rad < rad_max:
-                            acc[r - r_min, c - c_max, rad -
-                                rad_min] += 1.0 / rad
+                        if r != y and c != x:
+                            rad = int(math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
+                            if rad >= rad_min and rad <= rad_max:
+                                acc[r - r_min, c - c_max, rad -
+                                    rad_min] += 1.0 / rad
 
         hough_circles_progress_bar.update(y + 1)
 
