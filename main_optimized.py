@@ -27,6 +27,7 @@ OUTPUT_FOLDER = "outputs"
 NUMBER_OF_REDUCTIONS = 5
 REDUCTION_FACTOR = 2
 
+
 # Row
 R_MIN = 1
 R_MAX = 100
@@ -36,6 +37,7 @@ C_MIN = 1
 C_MAX = 100
 
 RAD_MIN = 3
+
 
 # Circle selection
 N_CIRCLES = 4
@@ -146,11 +148,6 @@ def get_local_maximum(acc):
     sorted_maxima = sorted(
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
 
-    # Display a plot of the local maximum
-    plt.subplot(3, 2, 4)
-    plt.plot(range(len(sorted_maxima)), list(
-        map(lambda lm: lm["value"], sorted_maxima)))
-    plt.title("Sorted local maximum")
     return sorted_maxima
 
 
@@ -250,8 +247,8 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
                             rad = int(
                                 math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
                             if rad >= rad_min and rad <= rad_max:
-                                acc[r - r_min, c - c_max, rad -
-                                    rad_min] += 1.0 / rad
+                                acc[r - r_min, c - c_max,
+                                    rad - rad_min] += 1.0 / rad
 
         hough_circles_progress_bar.update(y + 1)
 
@@ -327,48 +324,50 @@ if __name__ == "__main__":
         # Apply median blur to remove noise
         cleaned_img = remove_noise(cv.cvtColor(img, cv.COLOR_BGR2GRAY))
 
-        # Apply Sobel filter
-        filtered_img = sobelize(cleaned_img)
-
         # Resize the image NUMBER_OF_REDUCTIONS times
-        resized_images = [filtered_img]
-
-        plt.title("resized images")
-        plt.subplot(2, (NUMBER_OF_REDUCTIONS + 2) / 2, 1)
-        plt.imshow(cv.cvtColor(filtered_img, cv.COLOR_BGR2RGB))
-        plt.title("Original image size")
+        resized_images = [cleaned_img]
 
         for iteration in range(0, NUMBER_OF_REDUCTIONS):
             resized_images.append(reduce_image(resized_images[iteration]))
 
-            plt.subplot(2, (NUMBER_OF_REDUCTIONS + 2) / 2, iteration + 2)
+        # Detect circles on each image
+        for iteration in range(NUMBER_OF_REDUCTIONS, 0, -1):
+            print(f"\tIteration {iteration+1}/{NUMBER_OF_REDUCTIONS + 1}")
+            image_to_process = resized_images[iteration]
+
+            # Apply Sobel filter
+            filtered_img = sobelize(image_to_process)
+
+            rows, cols = image_to_process.shape
+            rad_max = math.sqrt(rows ** 2 + cols ** 2)
+
+            top_detected_circles, most_detected_circles = hough_circles(
+                img=filtered_img,
+                rows=rows,
+                cols=cols,
+                r_min=R_MIN,
+                r_max=rows,
+                c_min=C_MIN,
+                c_max=cols,
+                rad_min=RAD_MIN,
+                rad_max=rad_max
+            )
+
+            print(top_detected_circles)
+            print(most_detected_circles)
+            print(f"\t\t{len(top_detected_circles)} circles detected")
+            print(f"\t\t{len(most_detected_circles)} circles detected")
+            # Draw circles on the image
+            top_detected_circles_image = draw_circles(
+                image_to_process, top_detected_circles, R_MIN, C_MIN, RAD_MIN)
+            most_detected_circles_image = draw_circles(
+                image_to_process, most_detected_circles,  R_MIN, C_MIN, RAD_MIN)
+
+            # Show image
+            plt.subplot(1, 2, 1)
             plt.imshow(cv.cvtColor(
-                resized_images[iteration + 1], cv.COLOR_BGR2RGB))
-            plt.title(
-                f"Reduced image size by {math.pow(REDUCTION_FACTOR,iteration + 1)  }")
-
-        # Set accumulator parameters
-        image_to_process = resized_images[-1]
-        rows, cols = image_to_process.shape
-        # XXX: For now, r_max = rows and c_min = cols
-        r_max, c_max = rows, cols
-        r_min, c_min = R_MIN, C_MIN
-
-        # Compute maximum radius using Pythagorean theorem
-        e1 = cv.getTickCount()
-
-        rad_max = math.sqrt(r_max ** 2 + c_max ** 2)
-        rad_min = RAD_MIN
-        top_detected_circles, most_detected_circles = hough_circles(
-            image_to_process, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
-
-        time = (cv.getTickCount() - e1) / cv.getTickFrequency()
-        print(f"Time elapsed: {time}s")
-        top_detected_circles_image = draw_circles(
-            img, top_detected_circles, r_min, c_min, rad_min)
-        most_detected_circles_image = draw_circles(
-            img, most_detected_circles, r_min, c_min, rad_min)
-
-        plt.tight_layout()
-        print("Showing outputs")
-        plt.show()
+                top_detected_circles_image, cv.COLOR_BGR2RGB))
+            plt.subplot(1, 2, 2)
+            plt.imshow(cv.cvtColor(
+                most_detected_circles_image, cv.COLOR_BGR2RGB))
+            plt.show()
