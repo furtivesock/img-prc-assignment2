@@ -323,11 +323,15 @@ if __name__ == "__main__":
         r_min, c_min = R_MIN, C_MIN
 
         # Compute maximum radius using Pythagorean theorem
+        e1 = cv.getTickCount()
+
         rad_max = math.sqrt(r_max ** 2 + c_max ** 2)
         rad_min = RAD_MIN
         top_detected_circles, most_detected_circles = hough_circles(
             filtered_img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
 
+        time = (cv.getTickCount() - e1) / cv.getTickFrequency()
+        print(f"Time elapsed: {time}s")
         top_detected_circles_image = draw_circles(
             img, top_detected_circles, r_min, c_min, rad_min)
         most_detected_circles_image = draw_circles(
