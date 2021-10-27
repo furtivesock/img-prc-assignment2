@@ -24,7 +24,7 @@ IMAGES = ["coins2.jpg"]
 OUTPUT_FOLDER = "outputs"
 
 # Pyramid parameters
-NUMBER_OF_REDUCTIONS = 5
+NUMBER_OF_REDUCTIONS = 4
 REDUCTION_FACTOR = 2
 
 
@@ -215,25 +215,23 @@ def get_most_detected_circles(local_maxima, seuil_ratio=SEUIL_RATIO) -> list:
     return detected_circles
 
 
-def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max) -> list:
+def hough_circles(img, rows, cols,
+                  rows_max_search_range,
+                  rows_min_search_range,
+                  columns_max_search_range,
+                  columns_min_search_range,
+                  rad_max, rad_min) -> list:
     """Fill the accumulator for each possible circle that passes through an edge pixel
 
     Args:
         img (np.array)  : Image of detected edges
         rows (int)      : Image height
         cols (int)      : Image width
-        r_min (int)     : Minimum r axis value
-        r_max (int)     : Maximum r axis value
-        c_min (int)     : Minimum c axis value
-        c_max (int)     : Maximum c axis value
-        rad_min (int)   : Minimum circle radius
-        rad_max (int)   : Maximum circle radius
 
     Returns:
         list            : List of N_circles detected circles
     """
-    acc = np.zeros((r_max - r_min + 1, c_max - c_min + 1,
-                    int(rad_max - rad_min) + 1), dtype=float)
+    acc = np.zeros((rows, cols, rad_max), dtype=float)
 
     hough_circles_progress_bar = progress_bar(
         "Filling the accumulator", rows, f"rows, {rows * cols} total pixels")
@@ -241,14 +239,17 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
     for y in range(0, rows):
         for x in range(0, cols):
             if img[y, x] > 0:
-                for r in range(r_min - 1, r_max):
-                    for c in range(c_min - 1, c_max):
-                        if r != y and c != x:
-                            rad = int(
-                                math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
-                            if rad >= rad_min and rad <= rad_max:
-                                acc[r - r_min, c - c_max,
-                                    rad - rad_min] += 1.0 / rad
+                for r in range(-rows_max_search_range, rows_max_search_range):
+                    if abs(r) < rows_min_search_range or y + r < 0 or y + r >= rows:
+                        continue
+
+                    for c in range(-columns_max_search_range, columns_max_search_range):
+                        if abs(c) < columns_min_search_range or x + c < 0 or x + c >= cols:
+                            continue
+
+                        rad = int(math.sqrt(r ** 2 + c ** 2))
+                        if rad >= rad_min and rad <= rad_max:
+                            acc[y + r, x + c, rad - 1] += 1.0 / rad
 
         hough_circles_progress_bar.update(y + 1)
 
@@ -259,15 +260,12 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
     return top_detected_circles, most_detected_circles
 
 
-def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
+def draw_circles(img, circles, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
     """Draw circles (with markers on the center) to an image
 
     Args:
         img (np.array)      : Source image
         circles (list)      : List of circles parameters (format: {"r": int, "c": int, "rad": int})
-        r_min (int)         : Minimum r axis value (used for gap as accumulator starts by 0 on each axis)
-        c_min (int)         : Minimum c axis value
-        rad_min (int)       : Minimum circle radius
         thickness (int)     : Circle line thickness
         marker_size (int)   : Centred marker size
 
@@ -277,9 +275,9 @@ def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS
     modified_img = img.copy()
 
     for circle in circles:
-        center = (circle['r'] + r_min - 1, circle['c'] + c_min - 1)
-        modified_img = cv.circle(img=modified_img, center=center,
-                                 radius=circle['rad'] + rad_min, color=(0, 0, 255), thickness=thickness)
+        center = (circle['r'], circle['c'])
+        modified_img = cv.circle(img=modified_img, center=center, radius=circle['rad'], color=(
+            0, 0, 255), thickness=thickness)
         modified_img = cv.drawMarker(position=center, img=modified_img, color=(
             0, 0, 255), markerType=cv.MARKER_CROSS, markerSize=marker_size)
 
@@ -331,7 +329,7 @@ if __name__ == "__main__":
             resized_images.append(reduce_image(resized_images[iteration]))
 
         # Detect circles on each image
-        for iteration in range(NUMBER_OF_REDUCTIONS, 0, -1):
+        for iteration in range(NUMBER_OF_REDUCTIONS, -1, -1):
             print(f"\tIteration {iteration+1}/{NUMBER_OF_REDUCTIONS + 1}")
             image_to_process = resized_images[iteration]
 
@@ -339,35 +337,52 @@ if __name__ == "__main__":
             filtered_img = sobelize(image_to_process)
 
             rows, cols = image_to_process.shape
-            rad_max = math.sqrt(rows ** 2 + cols ** 2)
+
+            # Calculate the iteration's parameters
+            rows_max_search_range = int(rows / 8)
+            rows_min_search_range = int(rows_max_search_range / 2)
+
+            columns_max_search_range = int(cols / 8)
+            columns_min_search_range = int(columns_max_search_range / 2)
+
+            rad_max = int(math.sqrt(rows_max_search_range **
+                                    2 + columns_max_search_range ** 2))
+            rad_min = int(math.sqrt(rows_min_search_range **
+                                    2 + columns_min_search_range ** 2))
+
+            print(f"\t\tRows: {rows}, cols: {cols}")
+            print(f"\t\tRows max search range: {rows_max_search_range}")
+            print(f"\t\tRows min search range: {rows_min_search_range}")
+            print(f"\t\tColumns max search range: {columns_max_search_range}")
+            print(f"\t\tColumns min search range: {columns_min_search_range}")
+            print(f"\t\tRadius max: {rad_max}")
+            print(f"\t\tRadius min: {rad_min}")
 
             top_detected_circles, most_detected_circles = hough_circles(
                 img=filtered_img,
                 rows=rows,
                 cols=cols,
-                r_min=R_MIN,
-                r_max=rows,
-                c_min=C_MIN,
-                c_max=cols,
-                rad_min=RAD_MIN,
-                rad_max=rad_max
+                rows_max_search_range=rows_max_search_range,
+                rows_min_search_range=rows_min_search_range,
+                columns_max_search_range=columns_max_search_range,
+                columns_min_search_range=columns_min_search_range,
+                rad_max=rad_max,
+                rad_min=rad_min
             )
 
-            print(top_detected_circles)
-            print(most_detected_circles)
-            print(f"\t\t{len(top_detected_circles)} circles detected")
-            print(f"\t\t{len(most_detected_circles)} circles detected")
             # Draw circles on the image
             top_detected_circles_image = draw_circles(
-                image_to_process, top_detected_circles, R_MIN, C_MIN, RAD_MIN)
+                image_to_process, top_detected_circles)
             most_detected_circles_image = draw_circles(
-                image_to_process, most_detected_circles,  R_MIN, C_MIN, RAD_MIN)
+                image_to_process, most_detected_circles)
 
             # Show image
-            plt.subplot(1, 2, 1)
+            plt.subplot(7, 2, 1 + iteration * 2)
             plt.imshow(cv.cvtColor(
                 top_detected_circles_image, cv.COLOR_BGR2RGB))
-            plt.subplot(1, 2, 2)
+            plt.title(f"Top detected circles (iteration {iteration+1})")
+            plt.subplot(7, 2, 2 + iteration * 2)
             plt.imshow(cv.cvtColor(
                 most_detected_circles_image, cv.COLOR_BGR2RGB))
-            plt.show()
+            plt.title(f"Most detected circles (iteration {iteration+1})")
+        plt.show()
