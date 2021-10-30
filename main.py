@@ -40,10 +40,12 @@ N_CIRCLES = 4
 DELTA_R = 3
 DELTA_C = 3
 DELTA_RAD = 3
+SEUIL_RATIO = 0.70
 
 CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
 ERODE_KERNEL = (20, 20)
+
 
 def remove_noise(img) -> np.array:
     """Remove noise (if it exists) with median blur to make circle detection easier
@@ -57,6 +59,7 @@ def remove_noise(img) -> np.array:
     # XXX: Quick fix (temp) so that small images are not much blurred as bigger ones
     ksize = 1 if img.shape[1] < 50 and img.shape[0] < 50 else 3
     return cv.medianBlur(src=img, ksize=ksize)
+
 
 def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
     """Apply Sobel filter on an image for edge detection
@@ -114,21 +117,19 @@ def is_local_maximum(acc, i, j, k, shape) -> bool:
     return maximum == ref
 
 
-def get_detected_circles(acc, N_circles=N_CIRCLES) -> list:
-    """Get N_circles detected circles from computed accumulator
+def get_local_maximum(acc):
+    """Get local maximum from computed accumulator
 
     Args:
         acc (np.array): 3D accumulator
-        TODO: Find a way to compute N_circles in image without using fixed number
-        N_circles (int): Number of detected circles (the largest local maxima found) Defaults to N_CIRCLES.
 
     Returns:
-        list: List of N_circles detected circles
+        list: List of local maximum
     """
     rows, cols, depth = np.shape(acc)
     local_maxima = []
 
-    get_detected_circles_progress_bar = progress_bar(
+    get_local_maximum_progress_bar = progress_bar(
         "Finding the local maximum", rows, f"rows, {rows * cols} total pixels")
 
     for i in range(rows):
@@ -138,27 +139,80 @@ def get_detected_circles(acc, N_circles=N_CIRCLES) -> list:
                     local_maxima.append(
                         {"value": acc[i, j, k], "r": j, "c": i, "rad": k})
 
-        get_detected_circles_progress_bar.update(i + 1)
+        get_local_maximum_progress_bar.update(i + 1)
 
     sorted_maxima = sorted(
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
 
+    # Display a plot of the local maximum
+    plt.subplot(3, 2, 4)
+    plt.plot(range(len(sorted_maxima)), list(
+        map(lambda lm: lm["value"], sorted_maxima)))
+    plt.title("Sorted local maximum")
+    return sorted_maxima
+
+
+def get_top_detected_circles(local_maxima, N_circles=N_CIRCLES) -> list:
+    """Get N_circles detected circles from computed local_maxima
+
+    Args:
+        local_maxima (list): List of local maximum
+        N_circles (int): Number of detected circles (the largest local maxima found) Defaults to N_CIRCLES.
+
+    Returns:
+        list: List of N_circles detected circles
+    """
+
     detected_circles = []
 
     print(f"Retrieving {N_circles} largest local maxima...")
-    for i in range(len(sorted_maxima)):
+    for local_max in local_maxima:
         ignore = False
         if len(detected_circles) == N_circles:
             break
         for circle in detected_circles:
-            if (abs(circle['r'] - sorted_maxima[i]['r']) < DELTA_R
-                and abs(circle['c'] - sorted_maxima[i]['c']) < DELTA_C
-                    and abs(circle['rad'] - sorted_maxima[i]['rad']) < DELTA_RAD):
+            if (abs(circle['r'] - local_max['r']) < DELTA_R
+                and abs(circle['c'] - local_max['c']) < DELTA_C
+                    and abs(circle['rad'] - local_max['rad']) < DELTA_RAD):
                 ignore = True
                 break
         if not ignore:
-            detected_circles.append(sorted_maxima[i])
+            detected_circles.append(local_max)
+    return detected_circles
 
+
+def get_most_detected_circles(local_maxima, seuil_ratio=SEUIL_RATIO) -> list:
+    """Get all the most detected circles from the computed local_maxima
+
+    Args:
+        local_maxima (list): List of local maximum
+        seuil_ratio (float): ratio (between 0 and 1) of detection
+            For exemple, if the max local maximum is 100, and the seuil_ratio is 0.5,
+            all the local maxima with a value > 50 will be considered as detected circles
+            Defaults to SEUIL_RATIO.
+
+    Returns:
+        list: List of detected circles
+    """
+    max_value = max(lm["value"] for lm in local_maxima)
+    level_of_acceptance = max_value * seuil_ratio
+    detected_circles = []
+
+    print(f"Retrieving top {seuil_ratio*100}% largest local maxima...")
+    for local_max in local_maxima:
+        if local_max['value'] < level_of_acceptance:
+            continue
+
+        ignore = False
+        for circle in detected_circles:
+            if (abs(circle['r'] - local_max['r']) < DELTA_R
+                and abs(circle['c'] - local_max['c']) < DELTA_C
+                    and abs(circle['rad'] - local_max['rad']) < DELTA_RAD):
+                ignore = True
+                break
+        if not ignore:
+            detected_circles.append(local_max)
+    print(f"{len(detected_circles)} circles detected with a level of acceptance of {seuil_ratio*100}%")
     return detected_circles
 
 
@@ -191,16 +245,19 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
                 for r in range(r_min - 1, r_max):
                     for c in range(c_min - 1, c_max):
                         if r != y and c != x:
-                            rad = int(math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
+                            rad = int(
+                                math.sqrt(((y - r) ** 2) + ((x - c) ** 2)))
                             if rad >= rad_min and rad <= rad_max:
                                 acc[r - r_min, c - c_max, rad -
                                     rad_min] += 1.0 / rad
 
         hough_circles_progress_bar.update(y + 1)
 
-    detected_circles = get_detected_circles(acc)
+    local_maxima = get_local_maximum(acc)
+    top_detected_circles = get_top_detected_circles(local_maxima)
+    most_detected_circles = get_most_detected_circles(local_maxima)
 
-    return detected_circles
+    return top_detected_circles, most_detected_circles
 
 
 def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
@@ -223,7 +280,7 @@ def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS
     for circle in circles:
         center = (circle['r'] + r_min - 1, circle['c'] + c_min - 1)
         modified_img = cv.circle(img=modified_img, center=center,
-            radius=circle['rad'] + rad_min, color=(0, 0, 255), thickness=thickness)
+                                 radius=circle['rad'] + rad_min, color=(0, 0, 255), thickness=thickness)
         modified_img = cv.drawMarker(position=center, img=modified_img, color=(
             0, 0, 255), markerType=cv.MARKER_CROSS, markerSize=marker_size)
 
@@ -249,6 +306,7 @@ if __name__ == "__main__":
 
     # Load target image
     for image_name in images:
+        plt.figure(num=image_name)
         img = cv.imread(f"{IMAGES_FOLDER}/{image_name}")
         print(f"CURRENT IMAGE : {image_name}")
 
@@ -265,33 +323,44 @@ if __name__ == "__main__":
         r_min, c_min = R_MIN, C_MIN
 
         # Compute maximum radius using Pythagorean theorem
+        e1 = cv.getTickCount()
+
         rad_max = math.sqrt(r_max ** 2 + c_max ** 2)
         rad_min = RAD_MIN
-        detected_circles = hough_circles(
+        top_detected_circles, most_detected_circles = hough_circles(
             filtered_img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
 
-        drawn_image = draw_circles(
-            img, detected_circles, r_min, c_min, rad_min)
+        time = (cv.getTickCount() - e1) / cv.getTickFrequency()
+        print(f"Time elapsed: {time}s")
+        top_detected_circles_image = draw_circles(
+            img, top_detected_circles, r_min, c_min, rad_min)
+        most_detected_circles_image = draw_circles(
+            img, most_detected_circles, r_min, c_min, rad_min)
 
-        plt.figure(num=image_name)
-        plt.subplot(2, 2, 1)
+        plt.subplot(3, 2, 1)
         plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
         plt.title("Original")
-        plt.subplot(2, 2, 2)
+        plt.subplot(3, 2, 2)
         plt.imshow(cleaned_img, cmap="gray")
         plt.title("Image with median blur")
-        plt.subplot(2, 2, 3)
+        plt.subplot(3, 2, 3)
         plt.imshow(filtered_img, cmap="gray")
         plt.title("Image with Sobel filter applied")
-        plt.subplot(2, 2, 4)
-        plt.imshow(cv.cvtColor(drawn_image, cv.COLOR_BGR2RGB))
-        plt.title("Detected circles on image")
+        plt.subplot(3, 2, 5)
+        plt.imshow(cv.cvtColor(top_detected_circles_image, cv.COLOR_BGR2RGB))
+        plt.title(f"Top {N_CIRCLES} detected circles")
+        plt.subplot(3, 2, 6)
+        plt.imshow(cv.cvtColor(most_detected_circles_image, cv.COLOR_BGR2RGB))
+        plt.title(f"Most {SEUIL_RATIO*100}% detected circles")
 
         if args.save:
             print("Saving output image")
             if not os.path.isdir(OUTPUT_FOLDER):
                 os.mkdir(OUTPUT_FOLDER)
-            status = cv.imwrite(f"{OUTPUT_FOLDER}/{image_name}", drawn_image)
+            cv.imwrite(f"{OUTPUT_FOLDER}/top_{image_name}",
+                       top_detected_circles_image)
+            cv.imwrite(f"{OUTPUT_FOLDER}/most_{image_name}",
+                       most_detected_circles_image)
 
         plt.tight_layout()
         print("Showing outputs")
