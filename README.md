@@ -17,3 +17,32 @@ TODO
 ## Installation
 
 TODO
+
+## Usage
+### Exercise 2
+
+1. Move to the `src/` directory
+
+```sh
+cd img-prc-assignment2/src/
+```
+
+2. Run the script
+
+```sh
+python3 main.py
+```
+
+### Exercise 2
+
+1. Move to the `src/` directory
+
+```sh
+cd img-prc-assignment2/src/
+```
+
+2. Run the script
+
+```sh
+python3 main_optimized.py
+```

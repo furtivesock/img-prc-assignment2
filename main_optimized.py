@@ -3,15 +3,14 @@ import cv2 as cv
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-import argparse
 
 from utils import progress_bar
 
-"""Image processing 2nd assignment
+"""Image processing 2nd assignment Exercise 3
 
 Circle detector using Hough Transform but optimized for speed using the pyramidal approach
 
-Usage : [python3] main_optimized.py [-h] [--images IMAGES [IMAGES ...]] [-s]
+Usage : [python3] main_optimized.py
 
 Authors: Tom Mansion <tom.mansion@universite-paris-saclay.fr>, Sophie Nguyen <sophie.nguyen@universite-paris-saclay.fr>
 """
@@ -294,25 +293,9 @@ def reduce_image(img):
     return cv.resize(img, None, fx=(1 / REDUCTION_FACTOR), fy=(1 / REDUCTION_FACTOR))
 
 
-parser = argparse.ArgumentParser(
-    description="Detect circles on images in /images folder")
-parser.add_argument("--images",
-                    type=str,
-                    nargs='+',
-                    default=IMAGES,
-                    help="an image to detect circles")
-parser.add_argument("-s", "--save",
-                    dest="save",
-                    action="store_true",
-                    default=False,
-                    help="save output images into /output folder (default: disabled)")
-
 if __name__ == "__main__":
-    args = parser.parse_args()
-    images = args.images
-
     # Load target image
-    for image_name in images:
+    for image_name in IMAGES:
         plt.figure(num=image_name)
         img = cv.imread(f"{IMAGES_FOLDER}/{image_name}")
         print(f"CURRENT IMAGE : {image_name}")
