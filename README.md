@@ -49,7 +49,7 @@ curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/MoonCoin.png --outpu
 1. Move to the root directory
 
 ```sh
-cd img-prc-assignment2/src/
+cd img-prc-assignment2/
 ```
 
 2. Run the script
@@ -72,7 +72,7 @@ python3 main.py [-h] [--images IMAGES [IMAGES ...]] [-s --save]
 1. Move to the `src/` directory
 
 ```sh
-cd img-prc-assignment2/src/
+cd img-prc-assignment2/
 ```
 
 2. Run the script
