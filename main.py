@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import sys
 import cv2 as cv
 import numpy as np
 import math
@@ -19,18 +18,18 @@ Authors: Tom Mansion <tom.mansion@universite-paris-saclay.fr>, Sophie Nguyen <so
 """
 
 IMAGES_FOLDER = "images"
-# TODO: For now coins2.png is excluded (see exercise 3)
+# coins2.png is excluded (see exercise 3)
 IMAGES = ["coins.png", "four.png", "fourn.png", "MoonCoin.png"]
 OUTPUT_FOLDER = "outputs"
 
 MAX_KERNEL_LENGTH = 9
 
 # Row
-R_MIN = 1
+R_MIN = 0
 R_MAX = 100
 
 # Column
-C_MIN = 1
+C_MIN = 0
 C_MAX = 100
 
 RAD_MIN = 3
@@ -48,20 +47,18 @@ ERODE_KERNEL = (20, 20)
 
 
 def remove_noise(img) -> np.array:
-    """Remove noise (if it exists) with median blur to make circle detection easier
+    """Remove noise with median blur to make circle detection easier
 
     Args:
         img (np.array)      : Input image
 
     Returns:
-        np.array            : Cleaned image
+        np.array            : Blurred image with soft noise
     """
-    # XXX: Quick fix (temp) so that small images are not much blurred as bigger ones
-    ksize = 1 if img.shape[1] < 50 and img.shape[0] < 50 else 3
-    return cv.medianBlur(src=img, ksize=ksize)
+    return cv.medianBlur(src=img, ksize=3) if img.shape[0] > 50 and img.shape[0] > 50 else img
 
 
-def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
+def sobelize(img, erode_kernel=ERODE_KERNEL) -> np.array:
     """Apply Sobel filter on an image for edge detection
 
     Args:
@@ -80,7 +77,8 @@ def sobelize(img, kernel=ERODE_KERNEL) -> np.array:
 
     edges_img = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
     cleaned_img = cv.threshold(edges_img, 100, 255, cv.THRESH_BINARY)[1]
-    return cv.erode(cleaned_img, kernel, iterations=1)
+
+    return cv.erode(cleaned_img, erode_kernel, iterations=1)
 
 
 def is_local_maximum(acc, i, j, k, shape) -> bool:
