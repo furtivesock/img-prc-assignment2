@@ -1,11 +1,9 @@
 #!/usr/bin/python3
-import sys
 import cv2 as cv
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import argparse
-import os
 
 from utils import progress_bar
 
@@ -28,23 +26,15 @@ NUMBER_OF_REDUCTIONS = 4
 REDUCTION_FACTOR = 2
 
 
-# Row
-R_MIN = 1
-R_MAX = 100
-
-# Column
-C_MIN = 1
-C_MAX = 100
-
+# Rad
 RAD_MIN = 3
-
 
 # Circle selection
 N_CIRCLES = 4
 DELTA_R = 3
 DELTA_C = 3
 DELTA_RAD = 3
-SEUIL_RATIO = 0.70
+SEUIL_RATIO = 0.75
 
 CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
@@ -148,6 +138,12 @@ def get_local_maximum(acc):
     sorted_maxima = sorted(
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
 
+    # Display a plot of the local maximum
+    # plt.figure()
+    # plt.plot(range(len(sorted_maxima)), list(
+    #     map(lambda lm: lm["value"], sorted_maxima)))
+    # plt.title("Sorted local maximum")
+
     return sorted_maxima
 
 
@@ -193,6 +189,8 @@ def get_most_detected_circles(local_maxima, seuil_ratio=SEUIL_RATIO) -> list:
     Returns:
         list: List of detected circles
     """
+    if local_maxima is None or len(local_maxima) == 0:
+        return []
     max_value = max(lm["value"] for lm in local_maxima)
     level_of_acceptance = max_value * seuil_ratio
     detected_circles = []
@@ -254,8 +252,8 @@ def hough_circles(img, rows, cols,
         hough_circles_progress_bar.update(y + 1)
 
     local_maxima = get_local_maximum(acc)
-    top_detected_circles = get_top_detected_circles(local_maxima)
-    most_detected_circles = get_most_detected_circles(local_maxima)
+    top_detected_circles = get_top_detected_circles(local_maxima[:])
+    most_detected_circles = get_most_detected_circles(local_maxima[:])
 
     return top_detected_circles, most_detected_circles
 
@@ -318,6 +316,8 @@ if __name__ == "__main__":
         plt.figure(num=image_name)
         img = cv.imread(f"{IMAGES_FOLDER}/{image_name}")
         print(f"CURRENT IMAGE : {image_name}")
+        total_top_detected_circles = []
+        total_most_detected_circles = []
 
         # Apply median blur to remove noise
         cleaned_img = remove_noise(cv.cvtColor(img, cv.COLOR_BGR2GRAY))
@@ -339,24 +339,14 @@ if __name__ == "__main__":
             rows, cols = image_to_process.shape
 
             # Calculate the iteration's parameters
-            rows_max_search_range = int(rows / 8)
-            rows_min_search_range = int(rows_max_search_range / 2)
+            rows_max_search_range = 8
+            rows_min_search_range = 4
 
-            columns_max_search_range = int(cols / 8)
-            columns_min_search_range = int(columns_max_search_range / 2)
+            columns_max_search_range = 8
+            columns_min_search_range = 4
 
-            rad_max = int(math.sqrt(rows_max_search_range **
-                                    2 + columns_max_search_range ** 2))
-            rad_min = int(math.sqrt(rows_min_search_range **
-                                    2 + columns_min_search_range ** 2))
-
-            print(f"\t\tRows: {rows}, cols: {cols}")
-            print(f"\t\tRows max search range: {rows_max_search_range}")
-            print(f"\t\tRows min search range: {rows_min_search_range}")
-            print(f"\t\tColumns max search range: {columns_max_search_range}")
-            print(f"\t\tColumns min search range: {columns_min_search_range}")
-            print(f"\t\tRadius max: {rad_max}")
-            print(f"\t\tRadius min: {rad_min}")
+            rad_max = 8
+            rad_min = 4
 
             top_detected_circles, most_detected_circles = hough_circles(
                 img=filtered_img,
@@ -372,9 +362,15 @@ if __name__ == "__main__":
 
             # Draw circles on the image
             top_detected_circles_image = draw_circles(
-                image_to_process, top_detected_circles)
+                image_to_process, top_detected_circles,
+                thickness=NUMBER_OF_REDUCTIONS - iteration + 1,
+                marker_size=NUMBER_OF_REDUCTIONS - iteration + 5
+            )
             most_detected_circles_image = draw_circles(
-                image_to_process, most_detected_circles)
+                image_to_process, most_detected_circles,
+                thickness=NUMBER_OF_REDUCTIONS - iteration + 1,
+                marker_size=NUMBER_OF_REDUCTIONS - iteration + 5,
+            )
 
             # Show image
             plt.subplot(7, 2, 1 + iteration * 2)
@@ -385,4 +381,42 @@ if __name__ == "__main__":
             plt.imshow(cv.cvtColor(
                 most_detected_circles_image, cv.COLOR_BGR2RGB))
             plt.title(f"Most detected circles (iteration {iteration+1})")
+
+            # Add the detected circles to the list
+            #     Multiply the radius and the coordinates by the reduction factor
+            for j in range(0, len(most_detected_circles)):
+                most_detected_circles[j]['r'] *= int(math.pow(
+                    REDUCTION_FACTOR, iteration))
+                most_detected_circles[j]['c'] *= int(math.pow(
+                    REDUCTION_FACTOR, iteration))
+                most_detected_circles[j]['rad'] *= int(math.pow(
+                    REDUCTION_FACTOR, iteration))
+
+            #   Add the detected circles to the list
+            total_top_detected_circles += top_detected_circles
+            total_most_detected_circles += most_detected_circles
+            print(
+                f"\t\tTop detected circles: {len(total_top_detected_circles)}")
+            print(
+                f"\t\tMost detected circles: {len(total_most_detected_circles)}")
+
+        # Draw circles on the final image
+        total_top_detected_circles_image = draw_circles(
+            img, total_top_detected_circles,
+            thickness=3, marker_size=5
+        )
+        total_most_detected_circles_image = draw_circles(
+            img, total_most_detected_circles,
+            thickness=3, marker_size=5
+        )
+
+        plt.subplot(7, 2, NUMBER_OF_REDUCTIONS * 2 + 3)
+        plt.imshow(cv.cvtColor(
+            total_top_detected_circles_image, cv.COLOR_BGR2RGB))
+        plt.title(f"Final top detected circles")
+        plt.subplot(7, 2, NUMBER_OF_REDUCTIONS * 2 + 4)
+        plt.imshow(cv.cvtColor(
+            total_most_detected_circles_image, cv.COLOR_BGR2RGB))
+        plt.title(f"Final most detected circles")
+
         plt.show()
