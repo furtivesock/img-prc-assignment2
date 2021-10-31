@@ -37,11 +37,11 @@ You can also add the images with curl :
 cd img-prc-assignment2
 mkdir images
 cd images
-curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/four.png --output coins.png
-curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/four.png --output coins2.jpg
+curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/coins.png --output coins.png
+curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/coins2.jpg --output coins2.jpg
 curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/four.png --output four.png
-curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/four.png --output fourn.png
-curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/four.png --output MoonCoin.png
+curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/fourn.png --output fourn.png
+curl http://hebergement.u-psud.fr/emi/TIPolytech/TP2/images/MoonCoin.png --output MoonCoin.png
 ```
 ## Usage
 ### Exercise 2
