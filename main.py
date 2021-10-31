@@ -106,7 +106,7 @@ def is_local_maximum(acc, i, j, k, shape) -> bool:
     return maximum == ref
 
 
-def get_local_maxima(acc):
+def get_local_maxima(acc, display_plot=True):
     """Get local maximum from computed accumulator
     Args:
         acc (np.array): 3D accumulator
@@ -132,10 +132,11 @@ def get_local_maxima(acc):
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
 
     # Display a plot of the local maximum
-    plt.subplot(3, 2, 4)
-    plt.plot(range(len(sorted_maxima)), list(
-        map(lambda lm: lm["value"], sorted_maxima)))
-    plt.title("Sorted local maximum")
+    if display_plot:
+        plt.subplot(3, 2, 4)
+        plt.plot(range(len(sorted_maxima)), list(
+            map(lambda lm: lm["value"], sorted_maxima)))
+        plt.title("Sorted local maximum")
     return sorted_maxima
 
 

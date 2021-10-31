@@ -38,6 +38,7 @@ CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
 ERODE_KERNEL = (20, 20)
 
+
 def hough_circles(img, rows, cols,
                   rows_max_search_range,
                   rows_min_search_range,
@@ -76,11 +77,12 @@ def hough_circles(img, rows, cols,
 
         hough_circles_progress_bar.update(y + 1)
 
-    local_maxima = get_local_maxima(acc)
+    local_maxima = get_local_maxima(acc, display_plot=False)
     top_detected_circles = get_top_detected_circles(local_maxima[:])
     most_detected_circles = get_most_detected_circles(local_maxima[:])
 
     return top_detected_circles, most_detected_circles
+
 
 def reduce_image(img):
     """Reduce image size by half
@@ -92,6 +94,7 @@ def reduce_image(img):
         np.array: Reduced image
     """
     return cv.resize(img, None, fx=(1 / REDUCTION_FACTOR), fy=(1 / REDUCTION_FACTOR))
+
 
 def draw_circles(img, circles, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
     """Draw circles (with markers on the center) to an image
@@ -113,6 +116,7 @@ def draw_circles(img, circles, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SI
             0, 0, 255), markerType=cv.MARKER_CROSS, markerSize=marker_size)
 
     return modified_img
+
 
 if __name__ == "__main__":
     # Load target image
