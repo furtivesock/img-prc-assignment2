@@ -9,11 +9,8 @@ import os
 from utils import progress_bar
 
 """Image processing 2nd assignment
-
 Circle detector using Hough Transform
-
 Usage : [python3] main.py [-h] [--images IMAGES [IMAGES ...]] [-s]
-
 Authors: Tom Mansion <tom.mansion@universite-paris-saclay.fr>, Sophie Nguyen <sophie.nguyen@universite-paris-saclay.fr>
 """
 
@@ -48,10 +45,8 @@ ERODE_KERNEL = (20, 20)
 
 def remove_noise(img) -> np.array:
     """Remove noise with median blur to make circle detection easier
-
     Args:
         img (np.array)      : Input image
-
     Returns:
         np.array            : Blurred image with soft noise
     """
@@ -60,10 +55,8 @@ def remove_noise(img) -> np.array:
 
 def sobelize(img, erode_kernel=ERODE_KERNEL) -> np.array:
     """Apply Sobel filter on an image for edge detection
-
     Args:
         img     (np.array)  : Input image
-
     Returns:
         np.array            : Output image
     """
@@ -84,14 +77,12 @@ def sobelize(img, erode_kernel=ERODE_KERNEL) -> np.array:
 def is_local_maximum(acc, i, j, k, shape) -> bool:
     """Define if current element in 3D-accumulator is local maximum
     (according to its adjacent neighbors)
-
     Args:
         acc (np.array): 3D-accumulator
         i (int): Index i
         j (int): Index j
         k (int): Index k
         shape (tuple): 3D-accumulator shape
-
     Returns:
         bool: Is local maximum
     """
@@ -117,10 +108,8 @@ def is_local_maximum(acc, i, j, k, shape) -> bool:
 
 def get_local_maxima(acc):
     """Get local maximum from computed accumulator
-
     Args:
         acc (np.array): 3D accumulator
-
     Returns:
         list: List of local maximum
     """
@@ -152,11 +141,9 @@ def get_local_maxima(acc):
 
 def get_top_detected_circles(local_maxima, N_circles=N_CIRCLES) -> list:
     """Get N_circles detected circles from computed local_maxima
-
     Args:
         local_maxima (list): List of local maximum
         N_circles (int): Number of detected circles (the largest local maxima found) Defaults to N_CIRCLES.
-
     Returns:
         list: List of N_circles detected circles
     """
@@ -181,14 +168,12 @@ def get_top_detected_circles(local_maxima, N_circles=N_CIRCLES) -> list:
 
 def get_most_detected_circles(local_maxima, threshold_ratio=THRESHOLD_RATIO) -> list:
     """Get all the most detected circles from the computed local_maxima
-
     Args:
         local_maxima (list): List of local maximum
         threshold_ratio (float): ratio (between 0 and 1) of detection
             For exemple, if the max local maximum is 100, and the threshold_ratio is 0.5,
             all the local maxima with a value > 50 will be considered as detected circles
             Defaults to THRESHOLD_RATIO.
-
     Returns:
         list: List of detected circles
     """
@@ -216,7 +201,6 @@ def get_most_detected_circles(local_maxima, threshold_ratio=THRESHOLD_RATIO) -> 
 
 def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max) -> list:
     """Fill the accumulator for each possible circle that passes through an edge pixel
-
     Args:
         img (np.array)  : Image of detected edges
         rows (int)      : Image height
@@ -227,7 +211,6 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
         c_max (int)     : Maximum c axis value
         rad_min (int)   : Minimum circle radius
         rad_max (int)   : Maximum circle radius
-
     Returns:
         list            : List of N_circles detected circles
     """
@@ -258,9 +241,8 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
     return top_detected_circles, most_detected_circles
 
 
-def draw_circles(img, circles, rad_min, r_min=0, c_min=0, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
+def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
     """Draw circles (with markers on the center) to an image
-
     Args:
         img (np.array)      : Source image
         circles (list)      : List of circles parameters (format: {"r": int, "c": int, "rad": int})
@@ -269,7 +251,6 @@ def draw_circles(img, circles, rad_min, r_min=0, c_min=0, thickness=CIRCLE_THICK
         rad_min (int)       : Minimum circle radius
         thickness (int)     : Circle line thickness
         marker_size (int)   : Centred marker size
-
     Returns:
         np.array            : Output image with drawn circles
     """
