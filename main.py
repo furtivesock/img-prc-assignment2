@@ -39,7 +39,7 @@ N_CIRCLES = 4
 DELTA_R = 3
 DELTA_C = 3
 DELTA_RAD = 3
-SEUIL_RATIO = 0.70
+THRESHOLD_RATIO = 0.70
 
 CIRCLE_THICKNESS = 1
 MARKER_SIZE = 5
@@ -115,7 +115,7 @@ def is_local_maximum(acc, i, j, k, shape) -> bool:
     return maximum == ref
 
 
-def get_local_maximum(acc):
+def get_local_maxima(acc):
     """Get local maximum from computed accumulator
 
     Args:
@@ -127,8 +127,8 @@ def get_local_maximum(acc):
     rows, cols, depth = np.shape(acc)
     local_maxima = []
 
-    get_local_maximum_progress_bar = progress_bar(
-        "Finding the local maximum", rows, f"rows, {rows * cols} total pixels")
+    get_local_maxima_progress_bar = progress_bar(
+        "Finding the local maxima", rows, f"rows, {rows * cols} total pixels")
 
     for i in range(rows):
         for j in range(cols):
@@ -137,7 +137,7 @@ def get_local_maximum(acc):
                     local_maxima.append(
                         {"value": acc[i, j, k], "r": j, "c": i, "rad": k})
 
-        get_local_maximum_progress_bar.update(i + 1)
+        get_local_maxima_progress_bar.update(i + 1)
 
     sorted_maxima = sorted(
         local_maxima, key=lambda maximum: maximum["value"])[::-1]
@@ -179,24 +179,24 @@ def get_top_detected_circles(local_maxima, N_circles=N_CIRCLES) -> list:
     return detected_circles
 
 
-def get_most_detected_circles(local_maxima, seuil_ratio=SEUIL_RATIO) -> list:
+def get_most_detected_circles(local_maxima, threshold_ratio=THRESHOLD_RATIO) -> list:
     """Get all the most detected circles from the computed local_maxima
 
     Args:
         local_maxima (list): List of local maximum
-        seuil_ratio (float): ratio (between 0 and 1) of detection
-            For exemple, if the max local maximum is 100, and the seuil_ratio is 0.5,
+        threshold_ratio (float): ratio (between 0 and 1) of detection
+            For exemple, if the max local maximum is 100, and the threshold_ratio is 0.5,
             all the local maxima with a value > 50 will be considered as detected circles
-            Defaults to SEUIL_RATIO.
+            Defaults to THRESHOLD_RATIO.
 
     Returns:
         list: List of detected circles
     """
     max_value = max(lm["value"] for lm in local_maxima)
-    level_of_acceptance = max_value * seuil_ratio
+    level_of_acceptance = max_value * threshold_ratio
     detected_circles = []
 
-    print(f"Retrieving top {seuil_ratio*100}% largest local maxima...")
+    print(f"Retrieving top {threshold_ratio*100}% largest local maxima...")
     for local_max in local_maxima:
         if local_max['value'] < level_of_acceptance:
             continue
@@ -210,7 +210,7 @@ def get_most_detected_circles(local_maxima, seuil_ratio=SEUIL_RATIO) -> list:
                 break
         if not ignore:
             detected_circles.append(local_max)
-    print(f"{len(detected_circles)} circles detected with a level of acceptance of {seuil_ratio*100}%")
+    print(f"{len(detected_circles)} circles detected with a level of acceptance of {threshold_ratio*100}%")
     return detected_circles
 
 
@@ -251,14 +251,14 @@ def hough_circles(img, rows, cols, r_min, r_max, c_min, c_max, rad_min, rad_max)
 
         hough_circles_progress_bar.update(y + 1)
 
-    local_maxima = get_local_maximum(acc)
+    local_maxima = get_local_maxima(acc)
     top_detected_circles = get_top_detected_circles(local_maxima)
     most_detected_circles = get_most_detected_circles(local_maxima)
 
     return top_detected_circles, most_detected_circles
 
 
-def draw_circles(img, circles, r_min, c_min, rad_min, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
+def draw_circles(img, circles, rad_min, r_min=0, c_min=0, thickness=CIRCLE_THICKNESS, marker_size=MARKER_SIZE) -> np.array:
     """Draw circles (with markers on the center) to an image
 
     Args:
@@ -308,7 +308,7 @@ if __name__ == "__main__":
         img = cv.imread(f"{IMAGES_FOLDER}/{image_name}")
         print(f"CURRENT IMAGE : {image_name}")
 
-        # Apply median blur to remove noise
+        # Apply median blurring to remove noise
         cleaned_img = remove_noise(cv.cvtColor(img, cv.COLOR_BGR2GRAY))
 
         # Apply Sobel filter
@@ -316,7 +316,7 @@ if __name__ == "__main__":
 
         # Set accumulator parameters
         rows, cols = filtered_img.shape
-        # XXX: For now, r_max = rows and c_min = cols
+        # For now, r_max = rows and c_min = cols
         r_max, c_max = rows, cols
         r_min, c_min = R_MIN, C_MIN
 
@@ -349,7 +349,7 @@ if __name__ == "__main__":
         plt.title(f"Top {N_CIRCLES} detected circles")
         plt.subplot(3, 2, 6)
         plt.imshow(cv.cvtColor(most_detected_circles_image, cv.COLOR_BGR2RGB))
-        plt.title(f"Most {SEUIL_RATIO*100}% detected circles")
+        plt.title(f"Most {THRESHOLD_RATIO*100}% detected circles")
 
         if args.save:
             print("Saving output image")
